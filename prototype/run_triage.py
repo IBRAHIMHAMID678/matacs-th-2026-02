@@ -67,7 +67,7 @@ class ProposalExtraction:
 def evaluate_mandatory_gate(m: MandatoryCriteria) -> tuple[bool, Optional[str]]:
     """Evaluates pass/fail mandatory criteria in deterministic code."""
     if not m.licence_held_by_bidder:
-        return False, "Bidder does not hold the mandatory Ontario electrical contractor licence, citing an unconfirmed future subcontractor"
+        return False, "bidder does not hold the mandatory Ontario electrical contractor licence, relying on an unconfirmed future subcontractor"
     if not m.licence_number:
         return False, "Licence number missing or unstated"
     if not m.wsib_clearance_confirmed:
@@ -105,12 +105,10 @@ def compute_weighted_score(w: WeightedMetrics) -> float:
     else:
         timeline_score = round(max(0.0, 9.0 + ((SCHEDULE_CEILING_WEEKS - w.completion_timeline_weeks) / 4.0) * 4.0), 1)
 
-    # 4. Warranty (15%): 25/10 yr = 12.0, 25/12 yr = 15.0
-    panel_score = 5.0 if w.panel_warranty_years >= 25 else (w.panel_warranty_years / 25.0) * 5.0
-    if w.workmanship_warranty_years >= 12:
-        workmanship_score = 10.0
-    else:
-        workmanship_score = 7.0
+    # 4. Warranty (15%): 5 pts panel (25 yr = full), 10 pts workmanship (12 yr = full).
+    # Scored continuously so 5 yr, 10 yr and 12 yr workmanship are all distinguishable.
+    panel_score = round(min(5.0, (w.panel_warranty_years / 25.0) * 5.0), 1)
+    workmanship_score = round(min(10.0, (w.workmanship_warranty_years / 12.0) * 10.0), 1)
     warranty_score = round(panel_score + workmanship_score, 1)
 
     # 5. Team & Approach (15%): 12 mo monitoring = 14.0, 24 mo monitoring = 15.0
@@ -361,4 +359,14 @@ def run_pipeline() -> List[Dict[str, Any]]:
 
 if __name__ == "__main__":
     output = run_pipeline()
-    print(json.dumps(output, indent=2))
+    clean_output = [
+        {
+            "proposal": item["proposal"],
+            "rank": item["rank"],
+            "status": item["status"],
+            "score": item["score"],
+            "reason": item["reason"],
+        }
+        for item in output
+    ]
+    print(json.dumps(clean_output, indent=2))
