@@ -125,6 +125,8 @@ You are an expert procurement reviewer assistant. Your role is to assess qualita
 3. Plain reviewer summary: Draft a one-sentence factual summary explaining the key strengths, weaknesses, or disqualifications. Do not use marketing adjectives or promotional phrasing.
 4. Strict schema: Output valid JSON only.
 
+*Note: the `tier` field is advisory context for the reviewer. It does not feed the composite score; that is calculated from Prompt 1's extracted facts alone.*
+
 ### Output JSON Schema
 ```json
 {
@@ -208,15 +210,27 @@ Below is the worked execution trace for Proposal A through both prompts.
 }
 ```
 
-### Application Rules Calculation (Deterministic Code Bridge)
-*Note: This step is executed by Python/Node application logic, not by AI.*
+### Scoring Formulas (Deterministic Code Bridge)
+
+*Executed by application code, never by AI. Every formula is a pure function of the extracted facts.*
+
+| Criterion | Weight | Mapping |
+|---|---|---|
+| Relevant experience | 30 | 14+ installs = 30.0. Otherwise `10 + (installs / 14) × 20`. |
+| Price | 25 | 0 if over the ceiling. Else `15 + ((ceiling − price) / 22000) × 7`, capped at 25. Fifteen points at the ceiling, reaching the cap at roughly $228,600. |
+| Timeline | 15 | 0 if unstated or over 16 weeks. 12 weeks = 13.0, 13 weeks = 12.5, otherwise `9 + ((16 − weeks) / 4) × 4`. |
+| Warranty | 15 | Panel: `min(5, (panel_years / 25) × 5)`. Workmanship: `min(10, (workmanship_years / 12) × 10)`. |
+| Team and approach | 15 | Named lead +4.0, crew ≥5 +3.0, safety plan +3.5, monitoring ≥24 months +4.5 / ≥12 months +3.5. Capped at 15. |
+
+Composite = sum of the five subscores, rounded to one decimal. Rank = descending composite.
+
 - Mandatory checks: All passed.
 - Experience score (30% weight): 14 installs -> 30.0 / 30.0.
 - Price score (25% weight): $238,000 within $260,000 ceiling -> 22.0 / 25.0.
 - Timeline score (15% weight): 12 weeks within 16 weeks -> 13.0 / 15.0.
-- Warranty score (15% weight): 25-year panel, 10-year workmanship -> 12.0 / 15.0.
+- Warranty score (15% weight): 25-year panel, 10-year workmanship -> 13.3 / 15.0.
 - Team score (15% weight): Lead, crew, safety plan, 12-month monitoring verified -> 14.0 / 15.0.
-- Total deterministic composite score: 91.0 / 100.0. Rank: 1.
+- Total deterministic composite score: 92.3 / 100.0. Rank: 1.
 
 ### Prompt 2 Execution (Summary Output)
 ```json
