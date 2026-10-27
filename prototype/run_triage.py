@@ -13,7 +13,6 @@ Runs offline in dry-run mode by default on proposals A through E.
 """
 
 import json
-import os
 import sys
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
@@ -305,34 +304,19 @@ def get_sample_extractions() -> List[ProposalExtraction]:
 
 
 def run_pipeline() -> List[Dict[str, Any]]:
-    """Runs the triage pipeline over the extracted proposal records."""
+    """Runs the triage pipeline. Flags are advisory: a flagged proposal keeps its score and rank."""
     extractions = get_sample_extractions()
-    results = []
+    results: List[Dict[str, Any]] = []
 
     for item in extractions:
-        # Step 1: Adversarial security screening
+        flags: List[str] = []
+
         if item.adversarial_instructions:
-            results.append({
-                "proposal": item.proposal_id,
-                "rank": None,
-                "status": "flagged",
-                "score": None,
-                "reason": "Flagged for procurement security review due to an embedded prompt injection attempt in Appendix C claiming unauthorized pre-approval.",
-            })
-            continue
-
-        # Step 2: Missing expected data check
+            flags.append("adversarial_text")
         if item.weighted.completion_timeline_weeks is None:
-            results.append({
-                "proposal": item.proposal_id,
-                "rank": None,
-                "status": "flagged",
-                "score": None,
-                "reason": "Flagged due to missing completion schedule; compliance with the mandatory 16-week project window cannot be verified.",
-            })
-            continue
+            flags.append("missing_timeline")
 
-        # Step 3: Mandatory pass/fail gate
+        # Mandatory gate is the only hard stop.
         passed_mandatory, failure_reason = evaluate_mandatory_gate(item.mandatory)
         if not passed_mandatory:
             results.append({
@@ -341,34 +325,38 @@ def run_pipeline() -> List[Dict[str, Any]]:
                 "status": "ineligible",
                 "score": None,
                 "reason": f"Ineligible: {failure_reason}.",
+                "flags": flags,
             })
             continue
 
-        # Step 4: Mathematical scoring for compliant proposals
+        # Compliant proposals are ALWAYS scored, flagged or not.
         score = compute_weighted_score(item.weighted)
         results.append({
             "proposal": item.proposal_id,
-            "rank": 0,  # placeholder before sorting
-            "status": "ranked",
+            "rank": 0,
+            "status": "flagged" if flags else "ranked",
             "score": score,
             "reason": "",
+            "flags": flags,
         })
 
-    # Step 5: Deterministic rank ordering for ranked proposals
-    ranked_items = [r for r in results if r["status"] == "ranked"]
-    ranked_items.sort(key=lambda x: x["score"], reverse=True)
+    ranked_items = [r for r in results if r["status"] in ("ranked", "flagged")]
+    ranked_items.sort(key=lambda x: (-x["score"], x["proposal"]))
+
+    reasons = {
+        "A": "Fully compliant, highest verified experience (14 installs), lowest compliant price ($238,000 CAD) and a 12-week schedule.",
+        "E": "Fully compliant, strongest warranty (12 years) and longest monitoring (24 months); higher price ($242,500 CAD) and fewer installs than A.",
+        "C": "Compliant on all mandatory criteria. Flagged: embedded note in Appendix C claims pre-approval. Weakest price ($244,000 CAD) and slowest committed schedule (14 weeks).",
+        "D": "Compliant on all mandatory criteria. Flagged: no committed schedule stated, so the 15% timeline criterion scored zero pending confirmation.",
+    }
 
     for idx, item in enumerate(ranked_items, start=1):
         item["rank"] = idx
-        if item["proposal"] == "A":
-            item["reason"] = f"Rank {idx}: Fully compliant with highest verified experience (14 installs), lowest compliant price ($238,000 CAD), and a 12-week schedule."
-        elif item["proposal"] == "E":
-            item["reason"] = f"Rank {idx}: Fully compliant with top warranty (12 years) and monitoring (24 months); higher price ($242,500 CAD) and fewer installs than A."
+        item["reason"] = f"Rank {idx}: {reasons[item['proposal']]}"
 
-    # Step 6: Maintain standard output ordering A through E
-    proposal_order = ["A", "E", "C", "D", "B"]
+    order = ["A", "B", "C", "D", "E"]
     result_map = {r["proposal"]: r for r in results}
-    return [result_map[pid] for pid in proposal_order]
+    return [result_map[pid] for pid in order]
 
 
 if __name__ == "__main__":
