@@ -9,9 +9,20 @@
 This submission was developed using an interactive AI coding assistant as a pair-programming and design drafting assistant. The model helped explore edge cases, structure JSON schemas, format Mermaid diagrams, and draft section outlines. All architectural decisions, scoring logic, prompt injection defenses, and final reviews were strictly evaluated, directed, and approved by the candidate.
 
 ### Substantive Disagreement and Correction
-During the edge case analysis of the sample proposals, the automated assistant initially considered calculating informational scores for Proposal C (which contained an adversarial prompt injection in Appendix C) and Proposal D (which omitted a completion timeline), while appending warning flags. 
 
-The candidate rejected this approach and corrected the workflow: any proposal containing an adversarial injection attempt or failing to commit to a mandatory project schedule constraint must have its score and rank set to null (`score: null`, `rank: null`) and be assigned `status: "flagged"`. This ensures unverified claims or adversarial text cannot affect the ranking queue before a human reviewer conducts an investigation.
+Two disagreements shaped the final design.
+
+First, the assistant proposed letting the language model compute the weighted composite score and
+the rank order. I overrode this. LLM arithmetic drifts between runs, and a float difference would
+silently reorder the list. All weighting, summation and sorting moved into deterministic code, with
+the model restricted to extraction and to drafting reviewer-facing prose.
+
+Second, the assistant's first version removed any flagged proposal from the ranking entirely,
+setting `rank` and `score` to `null`. I initially accepted this, then changed it. Proposal C passes
+every mandatory criterion, and Proposal D only omits a schedule. Removing them left a two-item list
+from five proposals, which is not useful to a reviewer. Flags are now an advisory layer: a compliant
+proposal keeps its score and its position, and carries a flag that the reviewer must resolve.
+Eligibility is the only thing that removes a bid from the ranking.
 
 ---
 
