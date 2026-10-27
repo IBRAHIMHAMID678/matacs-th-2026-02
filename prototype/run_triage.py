@@ -68,7 +68,7 @@ class ProposalExtraction:
 def evaluate_mandatory_gate(m: MandatoryCriteria) -> tuple[bool, Optional[str]]:
     """Evaluates pass/fail mandatory criteria in deterministic code."""
     if not m.licence_held_by_bidder:
-        return False, "Bidder does not hold required Ontario electrical contractor licence (subcontractor proposed)"
+        return False, "Bidder does not hold the mandatory Ontario electrical contractor licence, citing an unconfirmed future subcontractor"
     if not m.licence_number:
         return False, "Licence number missing or unstated"
     if not m.wsib_clearance_confirmed:
