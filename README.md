@@ -1,7 +1,9 @@
 # AI-Assisted Proposal Triage Tool Design
 **Reference**: MATACS-TH-2026-02  
 **Candidate**: Ibrahim Hamid  
-**Time Spent**: 80 minutes  
+**Time Spent**: 90 minutes  
+*(Design and reading preceded repository initialisation, so commit timestamps are shorter than
+total time.)*  
 
 ---
 
@@ -35,6 +37,8 @@ The repository contains the exact required files:
 - [ranking.json](ranking.json): Evaluated status, rank, score, and single-line reasons for proposals A through E.
 - [diagram/flowchart.png](diagram/flowchart.png): High-resolution process flow diagram showing AI steps, rules, and human checkpoints.
 - [prototype/run_triage.py](prototype/run_triage.py): Optional prototype script executing the full triage and scoring pipeline.
+  The prototype ships with pre-extracted facts so it runs fully offline. A live mode would call
+  Prompt 1 and validate the response against the JSON schema.
 
 ---
 
